@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\View;
 
 class Plugin extends AbstractPlugin
 {
-    public const string VERSION = '0.1.1';
+    public const string VERSION = '0.1.2';
 
     protected string $name = 'Uptime Monitor';
 
@@ -73,10 +73,6 @@ class Plugin extends AbstractPlugin
             ->prefix('uptime')
             ->name('uptime.')
             ->group(__DIR__.'/routes.php');
-
-        // Routes added after the application booted are not in the name lookup table yet.
-        Route::getRoutes()->refreshNameLookups();
-        Route::getRoutes()->refreshActionLookups();
     }
 
     private function registerSchedule(): void

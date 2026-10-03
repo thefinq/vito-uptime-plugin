@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-10-03
+
+- Incoming webhooks: create a webhook URL under Uptime → Webhooks, paste it into an
+  Uptime Kuma "Webhook" notification, and Kuma's down/up/pending/maintenance events are
+  forwarded to Vito's notification channels. Tokens can be rotated; the full URL is shown
+  once after creating or rotating.
+
 ## 0.1.2 - 2026-10-03
 
 - Fix `Route [uptime.create] not defined` on panels with a cached route table: route

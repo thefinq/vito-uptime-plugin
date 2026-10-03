@@ -1,6 +1,7 @@
 @extends('uptime::layout', ['title' => 'Uptime monitors'])
 
 @section('actions')
+  <a class="btn" href="{{ route('uptime.webhooks.index') }}">Webhooks</a>
   <a class="btn primary" href="{{ route('uptime.create') }}">Add monitor</a>
 @endsection
 

@@ -4,8 +4,10 @@ use App\Models\Project;
 use App\Plugins\RegisterCommand;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Models\Monitor;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Models\MonitorEvent;
+use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Models\Webhook;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Notifications\MonitorDown;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Notifications\MonitorUp;
+use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Notifications\WebhookEvent;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Plugin;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Services\Checker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -222,4 +224,55 @@ test('check now runs the monitor immediately', function () {
         ->assertSessionHas('status', fn (string $s) => str_starts_with($s, 'Check passed: HTTP 200'));
 
     expect($monitor->refresh()->state)->toBe(Monitor::STATE_UP);
+});
+
+test('an Uptime Kuma webhook is forwarded to the notification channels', function () {
+    Notification::fake();
+    $this->actingAs($this->user);
+
+    $this->post(route('uptime.webhooks.store'), ['name' => 'Kuma'])->assertRedirect(route('uptime.webhooks.index'));
+    $webhook = Webhook::firstOrFail();
+    expect($webhook->project_id)->toBe($this->user->currentProject->id)->and(strlen($webhook->token))->toBe(40);
+
+    $this->get(route('uptime.webhooks.index'))->assertOk()->assertSee($webhook->url());
+
+    $down = [
+        'heartbeat' => ['monitorID' => 3, 'status' => 0, 'msg' => 'timeout of 48000ms exceeded', 'time' => '2026-10-03 15:00:00'],
+        'monitor' => ['id' => 3, 'name' => 'API', 'url' => 'https://api.example.test/up', 'type' => 'http'],
+        'msg' => '[API] [🔴 Down] timeout of 48000ms exceeded',
+    ];
+    $this->postJson($webhook->url(), $down)->assertOk()->assertJson(['ok' => true, 'level' => 'down']);
+    Notification::assertSentTo($this->notificationChannel, WebhookEvent::class, function ($n) {
+        return $n->rawText() === '🔴 DOWN: API (https://api.example.test/up) — timeout of 48000ms exceeded [Kuma]';
+    });
+
+    $up = ['heartbeat' => ['status' => 1, 'msg' => '200 - OK'], 'monitor' => ['name' => 'DB', 'hostname' => '10.0.0.5', 'port' => 5432], 'msg' => 'x'];
+    $this->postJson($webhook->url(), $up)->assertOk()->assertJson(['level' => 'up']);
+    Notification::assertSentTo($this->notificationChannel, WebhookEvent::class, fn ($n) => $n->rawText() === '🟢 UP: DB (10.0.0.5:5432) — 200 - OK [Kuma]');
+
+    $this->postJson($webhook->url(), ['heartbeat' => null, 'monitor' => null, 'msg' => 'Testing'])->assertOk()->assertJson(['level' => 'info']);
+    Notification::assertSentTo($this->notificationChannel, WebhookEvent::class, fn ($n) => $n->rawText() === 'Testing [Kuma]');
+
+    expect($webhook->refresh()->received_count)->toBe(3)->and($webhook->last_message)->toBe('Testing');
+
+    $this->postJson(route('uptime.hooks.receive', ['token' => 'nope']), $down)->assertNotFound();
+    Notification::assertSentToTimes($this->notificationChannel, WebhookEvent::class, 3);
+
+    $old = $webhook->token;
+    $this->post(route('uptime.webhooks.rotate', $webhook))->assertRedirect(route('uptime.webhooks.index'));
+    expect($webhook->refresh()->token)->not->toBe($old);
+    $this->postJson(route('uptime.hooks.receive', ['token' => $old]), $down)->assertNotFound();
+
+    $this->delete(route('uptime.webhooks.destroy', $webhook))->assertRedirect(route('uptime.webhooks.index'));
+    expect(Webhook::count())->toBe(0);
+});
+
+test('webhooks of another project are not reachable from the page', function () {
+    $this->actingAs($this->user);
+    $other = Project::factory()->create();
+    $webhook = Webhook::create(['project_id' => $other->id, 'name' => 'x', 'source' => 'kuma', 'token' => Webhook::generateToken()]);
+
+    $this->post(route('uptime.webhooks.rotate', $webhook))->assertNotFound();
+    $this->delete(route('uptime.webhooks.destroy', $webhook))->assertNotFound();
+    $this->get(route('uptime.webhooks.index'))->assertOk()->assertDontSee(substr($webhook->token, -6));
 });

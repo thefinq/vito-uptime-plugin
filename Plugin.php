@@ -9,6 +9,7 @@ use App\Plugins\RegisterServerFeatureAction;
 use App\Plugins\RegisterViews;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Console\CheckMonitorsCommand;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Features\OpenMonitorsAction;
+use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Http\Controllers\WebhookController;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -17,11 +18,11 @@ use Illuminate\Support\Facades\View;
 
 class Plugin extends AbstractPlugin
 {
-    public const string VERSION = '0.1.2';
+    public const string VERSION = '0.2.0';
 
     protected string $name = 'Uptime Monitor';
 
-    protected string $description = 'HTTP uptime checks with per-monitor intervals or cron schedules. Alerts go through the notification channels configured in Vito.';
+    protected string $description = 'HTTP uptime checks with per-monitor intervals or cron schedules, plus incoming webhooks from Uptime Kuma. Alerts go through the notification channels configured in Vito.';
 
     public function boot(): void
     {
@@ -65,6 +66,7 @@ class Plugin extends AbstractPlugin
     {
         Schema::dropIfExists('uptime_monitor_events');
         Schema::dropIfExists('uptime_monitors');
+        Schema::dropIfExists('uptime_webhooks');
     }
 
     private function registerRoutes(): void
@@ -72,7 +74,16 @@ class Plugin extends AbstractPlugin
         Route::middleware(['web', 'auth', 'has-project'])
             ->prefix('uptime')
             ->name('uptime.')
+            ->where(['monitor' => '[0-9]+', 'webhook' => '[0-9]+'])
             ->group(__DIR__.'/routes.php');
+
+        // Inbound webhooks: no session, no CSRF, rate limited; the token in the URL is the secret.
+        Route::middleware(['api'])
+            ->prefix('uptime')
+            ->name('uptime.')
+            ->group(function (): void {
+                Route::name('hooks.receive')->post('/hooks/{token}', [WebhookController::class, 'receive']);
+            });
     }
 
     private function registerSchedule(): void

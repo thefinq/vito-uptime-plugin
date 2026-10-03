@@ -55,6 +55,16 @@ with minute granularity in UTC.
 Alerts are sent with Vito's own notification system, to every channel configured under
 **Settings → Notification Channels**. No extra configuration is needed.
 
+## Uptime Kuma webhooks
+
+If you also run [Uptime Kuma](https://github.com/louislam/uptime-kuma), its events can
+reach the same Vito channels. Under **Uptime → Webhooks** create a webhook; the page shows
+a URL of the form `https://your-panel/uptime/hooks/<token>` once. In Kuma go to
+**Settings → Notifications → Setup Notification**, type *Webhook*, request body
+*application/json*, paste the URL, and attach the notification to the monitors you want
+(or make it the default). Kuma's test button sends an *info* message. Rotate the token
+from the same page if it leaks; the old URL stops working immediately.
+
 ## Running the checks by hand
 
 ```
@@ -74,8 +84,8 @@ vendor/bin/pest app/Vito/Plugins/Thefinq/VitoUptimePlugin/tests
 
 ## Roadmap
 
-- Webhook endpoint for Uptime Kuma, so Kuma incidents reach the same Vito channels.
-- Uptime Kuma as an alternative backend with per-user credentials.
+- Uptime Kuma as an alternative backend: show Kuma's monitors inside Vito with per-user
+  credentials.
 
 ## License
 

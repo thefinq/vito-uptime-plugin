@@ -43,7 +43,5 @@ test('interval validates cron expressions and labels schedules', function () {
         ->and(Interval::isValidCron('every five minutes'))->toBeFalse()
         ->and(Interval::label(60, null))->toBe('Every minute')
         ->and(Interval::label(45, null))->toBe('Every 45 seconds')
-        ->and(Interval::label(null, '0 * * * *'))->toBe('cron 0 * * * *')
-        ->and(Interval::needsLoop([60, 300]))->toBeFalse()
-        ->and(Interval::needsLoop([60, 15]))->toBeTrue();
+        ->and(Interval::label(null, '0 * * * *'))->toBe('cron 0 * * * *');
 });

@@ -66,19 +66,4 @@ class Interval
 
         return 'Every '.$seconds.' seconds';
     }
-
-    /**
-     * Whether any enabled monitor needs sub-minute attention, i.e. the check command
-     * must keep looping for the rest of the minute instead of exiting after one pass.
-     */
-    public static function needsLoop(iterable $intervals): bool
-    {
-        foreach ($intervals as $seconds) {
-            if ($seconds !== null && (int) $seconds < 60) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

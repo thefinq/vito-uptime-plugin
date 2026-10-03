@@ -4,7 +4,7 @@ namespace App\Vito\Plugins\Thefinq\VitoUptimePlugin\Console;
 
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Models\Monitor;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Services\Checker;
-use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Services\Interval;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Sleep;
 use Throwable;
@@ -13,16 +13,13 @@ class CheckMonitorsCommand extends Command
 {
     protected $signature = 'uptime:check
         {--once : Run a single pass over the due monitors and exit}
-        {--budget=55 : Seconds to keep looping when sub-minute intervals exist}';
+        {--budget=55 : Seconds this run may keep waiting for monitors that come due}';
 
     protected $description = 'Run the uptime monitors that are due';
 
     public function handle(Checker $checker): int
     {
         $deadline = microtime(true) + (int) $this->option('budget');
-        $loop = ! $this->option('once') && Interval::needsLoop(
-            Monitor::enabled()->whereNull('cron')->pluck('interval_seconds')
-        );
         $checked = 0;
 
         do {
@@ -45,7 +42,7 @@ class CheckMonitorsCommand extends Command
                 }
             }
 
-            if (! $loop) {
+            if ($this->option('once') || ! $this->somethingDueBefore($deadline)) {
                 break;
             }
 
@@ -55,5 +52,17 @@ class CheckMonitorsCommand extends Command
         $this->info("Checked $checked monitor(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The scheduler starts this command at the top of each minute; a monitor due at
+     * 12:00:40 would otherwise wait for the next start. Keep running while any enabled
+     * monitor comes due before the budget runs out.
+     */
+    private function somethingDueBefore(float $deadline): bool
+    {
+        $next = Monitor::enabled()->min('next_check_at');
+
+        return $next !== null && Carbon::parse($next)->getTimestamp() <= (int) $deadline;
     }
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-10-03
+
+- Uptime Kuma as a backend: each user can connect their own Kuma instance with an API key
+  (stored encrypted). Kuma's monitors, their status, response time and certificate days are
+  shown read-only from Kuma's `/metrics` endpoint, with links to add or edit monitors in
+  Kuma. Monitors and settings stay in Kuma.
+- Pages restyled with Vito's own stylesheet and components (buttons, tables, cards, dark
+  mode), with a slim header that links back to the panel.
+- Kuma port/TCP monitors are listed with their host and port instead of a bare scheme.
+
 ## 0.2.1 - 2026-10-03
 
 - Apply pending migrations automatically the first time a new release boots, so

@@ -20,13 +20,13 @@ use Throwable;
 
 class Plugin extends AbstractPlugin
 {
-    public const string VERSION = '0.2.1';
+    public const string VERSION = '0.3.0';
 
     private const string MIGRATED_KEY = 'uptime-plugin:migrated-version';
 
     protected string $name = 'Uptime Monitor';
 
-    protected string $description = 'HTTP uptime checks with per-monitor intervals or cron schedules, plus incoming webhooks from Uptime Kuma. Alerts go through the notification channels configured in Vito.';
+    protected string $description = 'HTTP uptime checks with per-monitor intervals or cron schedules, incoming webhooks from Uptime Kuma, and a read-only view of your own Uptime Kuma monitors. Alerts go through the notification channels configured in Vito.';
 
     public function boot(): void
     {
@@ -41,6 +41,15 @@ class Plugin extends AbstractPlugin
         if (! View::exists('uptime::layout')) {
             View::addNamespace('uptime', __DIR__.'/resources/views');
         }
+
+        // The shell mirrors Vito's sidebar and header and needs the current user.
+        View::composer('uptime::shell', function (\Illuminate\View\View $view): void {
+            $user = auth()->user();
+            $initials = collect(preg_split('/\s+/', trim((string) $user?->name)) ?: [])
+                ->filter()->take(2)->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))->implode('');
+
+            $view->with(['uptimeUser' => $user, 'uptimeUserInitials' => $initials !== '' ? $initials : 'U']);
+        });
 
         RegisterCommand::make(CheckMonitorsCommand::class)->register();
 
@@ -75,6 +84,7 @@ class Plugin extends AbstractPlugin
         Schema::dropIfExists('uptime_monitor_events');
         Schema::dropIfExists('uptime_monitors');
         Schema::dropIfExists('uptime_webhooks');
+        Schema::dropIfExists('uptime_kuma_connections');
     }
 
     private function registerRoutes(): void
@@ -82,7 +92,7 @@ class Plugin extends AbstractPlugin
         Route::middleware(['web', 'auth', 'has-project'])
             ->prefix('uptime')
             ->name('uptime.')
-            ->where(['monitor' => '[0-9]+', 'webhook' => '[0-9]+'])
+            ->where(['monitor' => '[0-9]+', 'webhook' => '[0-9]+', 'connection' => '[0-9]+'])
             ->group(__DIR__.'/routes.php');
 
         // Inbound webhooks: no session, no CSRF, rate limited; the token in the URL is the secret.

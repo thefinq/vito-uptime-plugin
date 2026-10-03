@@ -1,5 +1,6 @@
 <?php
 
+use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Http\Controllers\KumaController;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Http\Controllers\MonitorController;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,13 @@ Route::name('webhooks.index')->get('/webhooks', [WebhookController::class, 'inde
 Route::name('webhooks.store')->post('/webhooks', [WebhookController::class, 'store']);
 Route::name('webhooks.rotate')->post('/webhooks/{webhook}/rotate', [WebhookController::class, 'rotate']);
 Route::name('webhooks.destroy')->delete('/webhooks/{webhook}', [WebhookController::class, 'destroy']);
+
+Route::name('kuma.index')->get('/kuma', [KumaController::class, 'index']);
+Route::name('kuma.store')->post('/kuma', [KumaController::class, 'store']);
+Route::name('kuma.show')->get('/kuma/{connection}', [KumaController::class, 'show']);
+Route::name('kuma.refresh')->post('/kuma/{connection}/refresh', [KumaController::class, 'refresh']);
+Route::name('kuma.update')->put('/kuma/{connection}', [KumaController::class, 'update']);
+Route::name('kuma.destroy')->delete('/kuma/{connection}', [KumaController::class, 'destroy']);
 
 Route::name('show')->get('/{monitor}', [MonitorController::class, 'show']);
 Route::name('edit')->get('/{monitor}/edit', [MonitorController::class, 'edit']);

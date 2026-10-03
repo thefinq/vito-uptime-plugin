@@ -65,6 +65,22 @@ a URL of the form `https://your-panel/uptime/hooks/<token>` once. In Kuma go to
 (or make it the default). Kuma's test button sends an *info* message. Rotate the token
 from the same page if it leaks; the old URL stops working immediately.
 
+## Uptime Kuma as a backend
+
+Under **Uptime → Uptime Kuma** every user can connect their own Kuma instance: base URL
+plus an API key created in Kuma under **Settings → API Keys**. The key is stored
+encrypted and is used only to read Kuma's `/metrics` endpoint, so the page shows each
+Kuma monitor with its status, response time and certificate days, refreshed every 20
+seconds, with links to open Kuma or add a monitor there. Monitors and their settings stay
+in Kuma; Kuma has no REST API for managing monitors, so this view is read-only by design.
+Connections are personal and not visible to other users of the panel.
+
+## Pages
+
+The plugin's pages live under `/uptime`, outside Vito's single-page application, because
+plugins cannot add React pages to it. They use Vito's own stylesheet and components, follow
+the panel's light/dark setting, and link back to the panel.
+
 ## Running the checks by hand
 
 ```
@@ -81,11 +97,6 @@ Discover**. Tests use Vito's test case:
 ```
 vendor/bin/pest app/Vito/Plugins/Thefinq/VitoUptimePlugin/tests
 ```
-
-## Roadmap
-
-- Uptime Kuma as an alternative backend: show Kuma's monitors inside Vito with per-user
-  credentials.
 
 ## License
 

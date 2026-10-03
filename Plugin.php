@@ -12,13 +12,17 @@ use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Features\OpenMonitorsAction;
 use App\Vito\Plugins\Thefinq\VitoUptimePlugin\Http\Controllers\WebhookController;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
+use Throwable;
 
 class Plugin extends AbstractPlugin
 {
-    public const string VERSION = '0.2.0';
+    public const string VERSION = '0.2.1';
+
+    private const string MIGRATED_KEY = 'uptime-plugin:migrated-version';
 
     protected string $name = 'Uptime Monitor';
 
@@ -26,6 +30,8 @@ class Plugin extends AbstractPlugin
 
     public function boot(): void
     {
+        $this->migrateAfterUpdate();
+
         RegisterViews::make('uptime')
             ->path(__DIR__.'/resources/views')
             ->register();
@@ -38,18 +44,20 @@ class Plugin extends AbstractPlugin
 
         RegisterCommand::make(CheckMonitorsCommand::class)->register();
 
-        RegisterServerFeature::make('uptime')
-            ->label('Uptime monitors')
-            ->description('HTTP checks for this project, managed on the Uptime page.')
-            ->register();
+        if (! config('server.features.uptime')) {
+            RegisterServerFeature::make('uptime')
+                ->label('Uptime monitors')
+                ->description('HTTP checks for this project, managed on the Uptime page.')
+                ->register();
 
-        RegisterServerFeatureAction::make('uptime', 'open')
-            ->label('Open')
-            ->handler(OpenMonitorsAction::class)
-            ->register();
+            RegisterServerFeatureAction::make('uptime', 'open')
+                ->label('Open')
+                ->handler(OpenMonitorsAction::class)
+                ->register();
 
-        $this->registerRoutes();
-        $this->registerSchedule();
+            $this->registerRoutes();
+            $this->registerSchedule();
+        }
     }
 
     public function install(): void
@@ -100,6 +108,24 @@ class Plugin extends AbstractPlugin
             ->runInBackground();
     }
 
+    /**
+     * Vito runs install() and enable() but has no hook for updates, so a new release
+     * applies its migrations the first time it boots. The marker lives in the cache.
+     */
+    private function migrateAfterUpdate(): void
+    {
+        try {
+            if (Cache::get(self::MIGRATED_KEY) === self::VERSION) {
+                return;
+            }
+
+            $this->migrate();
+            Cache::forever(self::MIGRATED_KEY, self::VERSION);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
     private function migrate(): void
     {
         Artisan::call('migrate', [
@@ -107,5 +133,7 @@ class Plugin extends AbstractPlugin
             '--realpath' => true,
             '--force' => true,
         ]);
+
+        Cache::forever(self::MIGRATED_KEY, self::VERSION);
     }
 }

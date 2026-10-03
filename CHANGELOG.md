@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-10-03
+
+- Apply pending migrations automatically the first time a new release boots, so
+  updating from the panel needs no disable/enable cycle.
+
 ## 0.2.0 - 2026-10-03
 
 - Incoming webhooks: create a webhook URL under Uptime → Webhooks, paste it into an
